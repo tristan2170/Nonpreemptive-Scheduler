@@ -625,41 +625,19 @@ void sjf()
 }
 
 
-void myPrioritySort()
-{
-	//p12
-	strcpy(temp[0], ready[11]);
-	//p11
-	strcpy(temp[1], ready[10]);
-	//p1
-	strcpy(temp[2], ready[0]);
-	//p10
-	strcpy(temp[3], ready[9]);
-	//p15
-	strcpy(temp[4], ready[14]);
-	//p9
-	strcpy(temp[5], ready[8]);
-	//p8
-	strcpy(temp[6], ready[7]);
-	//p6
-	strcpy(temp[7], ready[5]);
-	//p3
-	strcpy(temp[8], ready[2]);
-	//p2
-	strcpy(temp[9], ready[1]);
-	//p7
-	strcpy(temp[10], ready[6]);
-	//p5
-	strcpy(temp[11], ready[4]);
-	//p14
-	strcpy(temp[12], ready[13]);
-	//p13
-	strcpy(temp[13], ready[12]);
-	//p4
-	strcpy(temp[14], ready[3]);
-		
+// Priortiy Sort Functions
+int compare(const void *a, const void *b) {
+    char *str1 = *(char **)a;
+    char *str2 = *(char **)b;
+    int num1, num2;
+    sscanf(str1, "%*d %d", &num1);
+    sscanf(str2, "%*d %d", &num2);
+    return num1 - num2;
 }
 
+void myPriortiySort(char **ready) {
+    qsort(ready, 20, sizeof(char *), compare);
+}
 
 
 void priority()
@@ -881,10 +859,7 @@ void priority()
 		strcat(finalOut, finalOut2);
 		strcat(finalOut, finalRes);
 		
-		
-		
-		
-		
+			
 		send(finalOut);
 		
 	//End of foor loop		
