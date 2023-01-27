@@ -300,15 +300,6 @@ void fcfs()
 			
 		
 		/*
-			Remember to typecast your input variables char -> int 
-			After the variables have been resolved we'll just use the send()
-			method to put each data set directly into the fifo.
-			
-			Since this is fcfs, each mini pcb can just be processed one after 
-			the other
-		/*
-		
-		/*
 			Below is where a set a variable equal to the neccesary function call
 			and prepare the data set to be shipped off by the the send() method 
 		*/
@@ -351,53 +342,32 @@ void fcfs()
 		
 	//End of foor loop		
 	}
-	
-
-	
+		
 }
 
 
 
-/*
-	Hardcoded sort algorithm to properly parse/order strings by burst times
+/* 
+Priortiy & SJF Sort Functions (SJF and Priority are 2nd numbers of strings)
+Below 2 functions are to be used by both sjf and priority 
 */
-void mySJFSort()
-{
-	//p11
-	strcpy(temp[0], ready[10]);
-	//p3
-	strcpy(temp[1], ready[2]);
-	//p8
-	strcpy(temp[2], ready[7]);
-	//p12
-	strcpy(temp[3], ready[11]);
-	//p2
-	strcpy(temp[4], ready[1]);
-	//p15
-	strcpy(temp[5], ready[14]);
-	//p1
-	strcpy(temp[6], ready[0]);
-	//p5
-	strcpy(temp[7], ready[4]);
-	//p4
-	strcpy(temp[8], ready[3]);
-	//p7
-	strcpy(temp[9], ready[6]);
-	//p13
-	strcpy(temp[10], ready[12]);
-	//p14
-	strcpy(temp[11], ready[13]);
-	//p6
-	strcpy(temp[12], ready[5]);
-	//p9
-	strcpy(temp[13], ready[8]);
-	//p10
-	strcpy(temp[14], ready[9]);
-	
+int compare(const void *a, const void *b) {
+    char *str1 = *(char **)a;
+    char *str2 = *(char **)b;
+    int num1, num2;
+    sscanf(str1, "%*d %d", &num1);
+    sscanf(str2, "%*d %d", &num2);
+    return num1 - num2;
 }
+
+void PrioritySJFSort(char **ready) {
+    qsort(ready, 20, sizeof(char *), compare);
+}
+
+
 void sjf()
 {
-	mySJFSort();
+	PrioritySJFSort();
 	
 	for(size_t i = 0; i < sizeof(temp) / sizeof(temp[0]); i++)
 	{
@@ -625,24 +595,11 @@ void sjf()
 }
 
 
-// Priortiy Sort Functions
-int compare(const void *a, const void *b) {
-    char *str1 = *(char **)a;
-    char *str2 = *(char **)b;
-    int num1, num2;
-    sscanf(str1, "%*d %d", &num1);
-    sscanf(str2, "%*d %d", &num2);
-    return num1 - num2;
-}
-
-void myPriortiySort(char **ready) {
-    qsort(ready, 20, sizeof(char *), compare);
-}
 
 
 void priority()
 {
-	myPrioritySort();
+	PrioritySJFSort();
 	
 	for(size_t i = 0; i < sizeof(temp) / sizeof(temp[0]); i++)
 	{
