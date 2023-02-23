@@ -9,8 +9,6 @@
 #include <stdbool.h>
 
 
-
-
 	// Ready Queue
 	char ready[15][20] = {0};
 	
@@ -27,8 +25,6 @@
 	
 	// Cmd line input for output file
 	char outFile[20] = " ";
-	
-	
 	
 	
 
@@ -99,22 +95,6 @@ void send(char a[25])
 	sprintf(fifo[n], "%s", a);
 		
 	pthread_mutex_unlock(&mutex1);
-	
-}
-
-/*
-	Writes contents of fifo to the output file
-*/
-void recv()
-{
-	pthread_mutex_lock(&mutex1);
-	FILE *fp = fopen(outFile, "w+");
-	
-	fwrite(fifo, sizeof(char), sizeof(fifo), fp);
-	fclose(fp);
-	pthread_mutex_unlock(&mutex1);
-	
-	
 	
 }
 
@@ -549,12 +529,9 @@ void sjf()
 				strncat(x, &tmp3, 1);
 				
 				paramY = atoi(y);
-				paramX = atoi(x);
-				
-				
+				paramX = atoi(x);	
 			}
-			
-			
+				
 		int result;
 		
 		if(strcmp(fcn, "sum") == 0)
@@ -859,7 +836,7 @@ void *sched_disp_func()
 		(*p[2])();
 	}
 	
-	pthread_exit(&sched_disp_func);
+	pthread_exit(0);
 	
 }
 
@@ -870,10 +847,15 @@ void *sched_disp_func()
 void *logger_func()
 {
 	
-	recv();
+	pthread_mutex_lock(&mutex1);
+	FILE *fp = fopen(outFile, "w+");
+	
+	fwrite(fifo, sizeof(char), sizeof(fifo), fp);
+	fclose(fp);
+	pthread_mutex_unlock(&mutex1);
 
 	
-	pthread_exit(&logger);
+	pthread_exit(0);
 }
 
 
@@ -910,9 +892,6 @@ int main(int argc, char *argv[]) {
 	
 	
 	
-
-	
-	//Creation of needed threads
 	pthread_t sched_disp, logger;
 	
 	//Creation of scheddisp thread passes in cmd line argument for chosen sched policy 
@@ -923,12 +902,12 @@ int main(int argc, char *argv[]) {
 	
 	
 	// pthread_join(sched_disp, NULL);
-	pthread_join(logger, NULL);
 	pthread_join(sched_disp, NULL);
+	pthread_join(logger, NULL);
 	
 	
 	
 	
-  
+	
    return 0;
 }
