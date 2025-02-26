@@ -1,3 +1,4 @@
+#include "operations.h"
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
@@ -7,861 +8,180 @@
 #include <pthread.h>
 #include <ctype.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include <ctype.h>
 
 
-
-
-	// Ready Queue
-	char ready[15][20] = {0};
 	
-	
-	// Fifo data structure
-	char fifo[15][50] = {0};
-	
-	
-	// Temp array just for data manipulation
-	char temp[15][50] = {0};
-	
-	// Cmd line input for sched policy choice
-	char polChoice[20] = " ";
-	
-	// Cmd line input for output file
-	char outFile[20] = " ";
-	
-	
-	
-	
+// Will be used to create the readyq array to store multiple types
+struct pcb {
+	int pid;
+	int priority;
+	int exec_time;
+	char fcn[5];
+	int x;
+	int y;
+};
 
-int prod(int x, int y){
-	
-	if(x == 0) return 0;
-	
-	int prod = 1;
-	
-	for(int i = x; i <= y; i++)
-	{
-			prod *= i; 
-	}
-	
-	return prod;
+// Struct for operation results to be printed to user
+struct output {
+	int pid;
+	int result;
+};
 
-}
+struct output fifo[10];
 
+// Ready Queue, 10 subarrays
+struct pcb readyq[10];
 
-int fib(int x, int y){
-	if(y <= 1)
-	{
-		return 1;
-	}
-	
-	return fib(x, y - 1) + fib(x, y - 2);
-}
-
-int power(int x, int y){
-	return pow(x,y);
-}
-
-int sum(int x, int y){
-	return (x+y);
-}
-
-
-
-// Function pointer array for functions
-	int (*comp[4]) (int x, int y) = {sum, power, fib, prod};
-	
-
-
-// Method to remove all occurences of commas
-void remove_all_commas(char* str, char c)
-{
-	char *pr = str, *pw = str;
-	while (*pr){
-		*pw = *pr++;
-		pw += (*pw != c);
-	}
-	*pw = '\0';
-}
-
-
-
+// Declared globally to be accessed by helper functions
+char sched_choice[] = "";
 
 pthread_mutex_t mutex1 = PTHREAD_MUTEX_INITIALIZER;
 
-// FIFO's send a receive functions
-void send(char a[25])
+int compare_by_exec(const void *a, const void *b)
 {
+	struct pcb *pcb_a = (struct pcb *)a;
+	struct pcb *pcb_b = (struct pcb *)b;
 	
-	
-	pthread_mutex_lock(&mutex1);
-	
-	int n = sizeof(fifo)/sizeof(fifo[0]);
-	sprintf(fifo[n], "%s", a);
-		
-	pthread_mutex_unlock(&mutex1);
-	
+	return pcb_a->exec_time - pcb_b->exec_time;
 }
 
-/*
-	Writes contents of fifo to the output file
-*/
-void recv()
+int compare_by_priority(const void *a, const void *b)
 {
-	pthread_mutex_lock(&mutex1);
-	FILE *fp = fopen(outFile, "w+");
+	struct pcb *pcb_a = (struct pcb *)a;
+	struct pcb *pcb_b = (struct pcb *)b;
 	
-	fwrite(fifo, sizeof(char), sizeof(fifo), fp);
-	fclose(fp);
-	pthread_mutex_unlock(&mutex1);
-	
-	
-	
-}
-
-
-
-
-
-// is the first number of the minipcb one digit or two digit?
-bool isTwoDigit(char s[])
-{
-	/* 
-		Checks if 2nd char in minipcb is a digit, 
-		if yes ..  then the priority number is two digits
-	*/
-	if(isdigit(s[1]))
-	{
-		return true;
-	}
-	else 
-		return false;
+	return pcb_a->priority - pcb_b->priority;
 }
 
 
 void fcfs()
 {
-	for(size_t i = 0; i < sizeof(ready) / sizeof(ready[0]); i++)
-	{
-		char readytemp[25] = "";
-		strcpy(readytemp, ready[i]);
-		remove_all_commas(readytemp, ',');
-		
-		char fcn[15] = " ";
-		int paramX;
-		int paramY;
-		
-		
-		
-		// Checks first digit(s) of the minipcb to ensure correct parsing of particular strings
-		if(isTwoDigit(readytemp))
-		{
-			if(readytemp[2] == 's')
-			{
-				strcpy(fcn, "sum");
-			}
-			else if(readytemp[2] == 'f')
-			{
-				strcpy(fcn, "fibonacci");
-			}
-			else if(readytemp[2] == 'p')
-			{
-				if(readytemp[3] == 'r')
-				{
-					strcpy(fcn, "product");
-					
-				}					
-				if(readytemp[3] == 'o')
-				{
-					strcpy(fcn, "power");
-				}
-			}
-		}
-		else
-		{
-			if(readytemp[1] == 's')
-			{
-				strcpy(fcn, "sum");
-			}
-			else if(readytemp[1] == 'f')
-			{
-				strcpy(fcn, "fibonacci");
-			}
-			else if(readytemp[1] == 'p')
-			{
-				if(readytemp[2] == 'r')
-				{
-					strcpy(fcn, "product");
-				}
-				else if(readytemp[2] == 'o')
-				{
-					strcpy(fcn, "power");
-				}
-			}	
-		}
-		
-		
-	/*
-		Need to parse input values, figure out which function is being used
-		so you know at which index to start iterating for your fcn input values
-		
-		strcmp function works opposite
-		return 0 means strings equal 
-		
-		Maybe use while loop to iterate after the fcn name, 
-		count chars to see if 2 digits or 4
-		
-		For pow function only takes in 2 digits.
-	*/
+	pthread_mutex_lock(&mutex1);
 	
-		   //Start at last position, iterate backwards, had to do pos - 3 for trailing white space;
-			int pos = strlen(readytemp) - 3;
-			int j = strlen(readytemp)- 3;
-			int count = 0;
-			
-			
-			while(isdigit(readytemp[j]))
-			{
-				if(count == 4) break;
-				count++;
-				j--;
-			}
-			
-			if(count == 2)
-			{
-				char y = readytemp[pos];
-				char x = readytemp[pos - 1];
-				
-				paramY = y - '0';
-				paramX = x - '0';
-				
-				
-				
-			}
-			else if (count == 3)
-			{
-				/*
-					Priority 8 is the only one where the first input is 2 digits
-					just hardcode parse it with an if statement
-				*/
-				
-				if(readytemp[0] == '8')
-				{
-					char y = readytemp[pos];
-					
-					char x[5] = " ";
-					char tmp1 = readytemp[pos-1];
-					char tmp2 = readytemp[pos-2];
-					strncat(x, &tmp2, 1);
-					strncat(x, &tmp1, 1);
-					
-					paramY = y - '0';
-					paramX = atoi(x);
-					
-				}
-				else
-				{
-					char y[5] = " ";
-					char tmp1 = readytemp[pos];
-					char tmp2 = readytemp[pos-1];
-					strncat(y, &tmp2, 1);
-					strncat(y, &tmp1, 1);
-					
-					
-					char x = readytemp[pos-2]; 
-					
-					paramY = atoi(y);
-					paramX = x - '0';
-				}
-				
-			}
-			else if (count == 4)
-			{
-				//concat two digs for x, concat two digts for y
-				char y[5] = " ";
-				char tmp1 = readytemp[pos];
-				char tmp2 = readytemp[pos-1];
-				strncat(y, &tmp2, 1);
-				strncat(y, &tmp1, 1);
-				
-				
-				
-				char x[] = " ";
-				char tmp3 = readytemp[pos-2];
-				char tmp4 = readytemp[pos-3];
-				strncat(x, &tmp4, 1);
-				strncat(x, &tmp3, 1);
-				
-				paramY = atoi(y);
-				paramX = atoi(x);
-				
-				
-			}
-			
-			
+	for(int i = 0; i < 10; i++)
+	{
+		fifo[i].pid = readyq[i].pid;
 		
-		/*
-			Below is where a set a variable equal to the neccesary function call
-			and prepare the data set to be shipped off by the the send() method 
-		*/
+		int x = readyq[i].x;
+		int y = readyq[i].y;
 		
-		
-		
-		int result;
-		
-		if(strcmp(fcn, "sum") == 0)
+		if(strcmp(readyq[i].fcn, "fib") == 0)
 		{
-			result = (*comp[0]) (paramX, paramY);
+			fifo[i].result = fib(x);
 		}
-		else if(strcmp(fcn, "power") == 0)
+		else if(strcmp(readyq[i].fcn, "prod") == 0)
 		{
-			result = (*comp[1]) (paramX, paramY);
+			fifo[i].result = prod(x, y);
 		}
-		else if(strcmp(fcn, "fibonacci") == 0)
+		else if(strcmp(readyq[i].fcn, "pow") == 0)
 		{
-			result = (*comp[2]) (paramX, paramY);
+			fifo[i].result = power(x, y);
 		}
-		else if(strcmp(fcn, "product") == 0)
+		else if(strcmp(readyq[i].fcn, "sum") == 0)
 		{
-			result = (*comp[3]) (paramX, paramY);
+			fifo[i].result = sum(x, y);
 		}
-		
-		
-		char finalOut[40] = " "; 
-		char finalOut2[] = " Result is: ";
-		char finalRes[5] = " ";
-		
-		sprintf(finalRes, "%i", result);
-		
-		strcat(finalOut, ready[i]);
-		strcat(finalOut, finalOut2);
-		strcat(finalOut, finalRes);
-		
-		
-		
-		send(finalOut);
-		
-	//End of foor loop		
 	}
-		
-}
-
-
-
-/* 
-Priortiy & SJF Sort Functions (SJF and Priority are 2nd numbers of strings)
-Below 2 functions are to be used by both sjf and priority 
-*/
-int compare(const void *a, const void *b) {
-    char *str1 = *(char **)a;
-    char *str2 = *(char **)b;
-    int num1, num2;
-    sscanf(str1, "%*d %d", &num1);
-    sscanf(str2, "%*d %d", &num2);
-    return num1 - num2;
-}
-
-void PrioritySJFSort(char **ready) {
-    qsort(ready, 20, sizeof(char *), compare);
-}
-
+	
+	pthread_mutex_unlock(&mutex1);
+};
 
 void sjf()
 {
-	PrioritySJFSort();
+	pthread_mutex_lock(&mutex1);
 	
-	for(size_t i = 0; i < sizeof(temp) / sizeof(temp[0]); i++)
+	qsort(readyq, 10, sizeof(struct pcb), compare_by_exec);
+	
+	for(int i = 0; i < 10; i++)
 	{
-		char readytemp[25] = "";
-		strcpy(readytemp, temp[i]);
-		remove_all_commas(readytemp, ',');
+		fifo[i].pid = readyq[i].pid;
 		
-		char fcn[15] = " ";
-		int paramX;
-		int paramY;
+		int x = readyq[i].x;
+		int y = readyq[i].y;
 		
-		
-		
-		int c = 0;
-		int p = 0;
-		size_t k = 0;
-		while(isdigit(readytemp[p]))
+		if(strcmp(readyq[i].fcn, "fib") == 0)
 		{
-			if(c == 4) break;
-			
-			c++;
-			p++;
+			fifo[i].result = fib(x);
 		}
-		
-		if(c == 2)
+		else if(strcmp(readyq[i].fcn, "prod") == 0)
 		{
-			if(readytemp[2] == 'f')
-			{
-				strcpy(fcn, "fibonacci");
-			}	
-			else if(readytemp[2] == 's')
-			{
-				strcpy(fcn, "sum");
-			}
-			else if(readytemp[2] == 'p')
-			{
-				if(readytemp[3] == 'o')
-				{
-					strcpy(fcn, "power");
-				}
-				if(readytemp[3] == 'r')
-				{
-					strcpy(fcn, "product");
-				}
-			}
+			fifo[i].result = prod(x, y);
 		}
-		if(c == 3)
+		else if(strcmp(readyq[i].fcn, "pow") == 0)
 		{
-			if(readytemp[3] == 'f')
-			{
-				strcpy(fcn, "fibonacci");
-			}	
-			else if(readytemp[3] == 's')
-			{
-				strcpy(fcn, "sum");
-			}
-			else if(readytemp[3] == 'p')
-			{
-				if(readytemp[4] == 'o')
-				{
-					strcpy(fcn, "power");
-				}					
-				if(readytemp[4] == 'r') 
-				{
-					strcpy(fcn, "product");
-				}
-			}
+			fifo[i].result = power(x, y);
 		}
-		if(c == 4)
+		else if(strcmp(readyq[i].fcn, "sum") == 0)
 		{
-			if(readytemp[4] == 'f')
-			{
-				strcpy(fcn, "fibonacci");
-			}	
-			else if(readytemp[4] == 's')
-			{
-				strcpy(fcn, "sum");
-			}
-			else if(readytemp[4] == 'p')
-			{
-				if(readytemp[5] == 'o')
-				{
-					strcpy(fcn, "power");
-				}					
-				if(readytemp[5] == 'r')
-				{
-					strcpy(fcn, "product");	
-				}					
-			}
+			fifo[i].result = sum(x, y);
 		}
-		
-		
-	/*
-		Need to parse input values, figure out which function is being used
-		so you know at which index to start iterating for your fcn input values
-		
-		strcmp function works opposite
-		return 0 means strings equal 
-		
-		Maybe use while loop to iterate after the fcn name, 
-		count chars to see if 2 digits or 4
-		
-		For pow function only takes in 2 digits.
-	*/
-	
-		//Start at last position, iterate backwards
-			int pos = strlen(readytemp) - 3;
-			int j = strlen(readytemp) - 3;
-			int count = 0;
-			
-			while(isdigit(readytemp[j]))
-			{
-				if(count == 4) break;
-				
-				count++;
-				j--;
-			}
-			
-			if(count == 2)
-			{
-				char y = readytemp[pos];
-				char x = readytemp[pos - 1];
-				
-				paramY = y - '0';
-				paramX = x - '0';
-			}
-			else if (count == 3)
-			{
-				/*
-					Process 8 is the only one where the first input is 2 digits
-					just hardcode parse it with an if statement
-				*/
-				
-				if(readytemp[0] == '8')
-				{
-					char y = readytemp[pos];
-					
-					char x[5] = " ";
-					char tmp1 = readytemp[pos-1];
-					char tmp2 = readytemp[pos-2];
-					strncat(x, &tmp2, 1);
-					strncat(x, &tmp1, 1);
-					
-					paramY = y - '0';
-					paramX = atoi(x);
-					
-				}
-				else
-				{
-					char y[5] = " ";
-					char tmp1 = readytemp[pos];
-					char tmp2 = readytemp[pos-1];
-					strncat(y, &tmp2, 1);
-					strncat(y, &tmp1, 1);
-					
-					
-					char x = readytemp[pos-2]; 
-					
-					paramY = atoi(y);
-					paramX = x - '0';
-				}
-				
-			}
-			else if (count == 4)
-			{
-				//concat two digs for x, concat two digts for y
-				char y[5] = " ";
-				char tmp1 = readytemp[pos];
-				char tmp2 = readytemp[pos-1];
-				strncat(y, &tmp2, 1);
-				strncat(y, &tmp1, 1);
-				
-				
-				
-				char x[5] = " ";
-				char tmp3 = readytemp[pos-2];
-				char tmp4 = readytemp[pos-3];
-				strncat(x, &tmp4, 1);
-				strncat(x, &tmp3, 1);
-				
-				paramY = atoi(y);
-				paramX = atoi(x);
-				
-				
-			}
-			
-			
-		int result;
-		
-		if(strcmp(fcn, "sum") == 0)
-		{
-			result = (*comp[0]) (paramX, paramY);
-		}
-		else if(strcmp(fcn, "power") == 0)
-		{
-			result = (*comp[1]) (paramX, paramY);
-		}
-		else if(strcmp(fcn, "fibonacci") == 0)
-		{
-			result = (*comp[2]) (paramX, paramY);
-		}
-		else if(strcmp(fcn, "product") == 0)
-		{
-			result = (*comp[3]) (paramX, paramY);
-		}
-		
-		char finalOut[40] = " "; 
-		char finalOut2[] = " Result is: ";
-		char finalRes[5] = " ";
-		
-		sprintf(finalRes, "%i", result);
-		
-		strcat(finalOut, temp[i]);
-		strcat(finalOut, finalOut2);
-		strcat(finalOut, finalRes);
-		
-		
-		
-		send(finalOut);
-		
-	//End of foor loop		
-
 	}
 	
-}
+	pthread_mutex_unlock(&mutex1);
 
+}; 
 
 
 
 void priority()
 {
-	PrioritySJFSort();
+	pthread_mutex_lock(&mutex1);
 	
-	for(size_t i = 0; i < sizeof(temp) / sizeof(temp[0]); i++)
+	qsort(readyq, 10, sizeof(struct pcb), compare_by_priority);
+	
+	for(int i = 0; i < 10; i++)
 	{
-		char readytemp[25] = "";
-		strcpy(readytemp, temp[i]);
-		remove_all_commas(readytemp, ',');
+		fifo[i].pid = readyq[i].pid;
 		
-		char fcn[15] = " ";
-		int paramX;
-		int paramY;
+		int x = readyq[i].x;
+		int y = readyq[i].y;
 		
-		
-		
-		int c = 0;
-		int p = 0;
-		int k = 0;
-		while(isdigit(readytemp[p]))
+		if(strcmp(readyq[i].fcn, "fib") == 0)
 		{
-			if(c == 4) break;
-			
-			c++;
-			p++;
+			fifo[i].result = fib(x);
 		}
-		
-		if(c == 2)
+		else if(strcmp(readyq[i].fcn, "prod") == 0)
 		{
-			if(readytemp[2] == 'f')
-			{
-				strcpy(fcn, "fibonacci");
-			}	
-			else if(readytemp[2] == 's')
-			{
-				strcpy(fcn, "sum");
-			}
-			else if(readytemp[2] == 'p')
-			{
-				if(readytemp[3] == 'o')
-				{
-					strcpy(fcn, "power");
-				}
-				if(readytemp[3] == 'r')
-				{
-					strcpy(fcn, "product");
-				}
-			}
+			fifo[i].result = prod(x, y);
 		}
-		if(c == 3)
+		else if(strcmp(readyq[i].fcn, "pow") == 0)
 		{
-			if(readytemp[3] == 'f')
-			{
-				strcpy(fcn, "fibonacci");
-			}	
-			else if(readytemp[3] == 's')
-			{
-				strcpy(fcn, "sum");
-			}
-			else if(readytemp[3] == 'p')
-			{
-				if(readytemp[4] == 'o')
-				{
-					strcpy(fcn, "power");
-				}					
-				if(readytemp[4] == 'r') 
-				{
-					strcpy(fcn, "product");
-				}
-			}
+			fifo[i].result = power(x, y);
 		}
-		if(c == 4)
+		else if(strcmp(readyq[i].fcn, "sum") == 0)
 		{
-			if(readytemp[4] == 'f')
-			{
-				strcpy(fcn, "fibonacci");
-			}	
-			else if(readytemp[4] == 's')
-			{
-				strcpy(fcn, "sum");
-			}
-			else if(readytemp[4] == 'p')
-			{
-				if(readytemp[5] == 'o')
-				{
-					strcpy(fcn, "power");
-				}					
-				if(readytemp[5] == 'r')
-				{
-					strcpy(fcn, "product");	
-				}					
-			}
+			fifo[i].result = sum(x, y);
 		}
-		
-		
-	/*
-		Need to parse input values, figure out which function is being used
-		so you know at which index to start iterating for your fcn input values
-		
-		strcmp function works opposite
-		return 0 means strings equal 
-		
-		Maybe use while loop to iterate after the fcn name, 
-		count chars to see if 2 digits or 4
-		
-		For pow function only takes in 2 digits.
-	*/
-	
-		//Start at last position, iterate backwards
-			int pos = strlen(readytemp)- 3;
-			int j = strlen(readytemp)- 3;
-			int count = 0;
-			
-			while(isdigit(readytemp[j]))
-			{
-				if(count == 4) break;
-				
-				count++;
-				j--;
-			}
-			
-			if(count == 2)
-			{
-				char y = readytemp[pos];
-				char x = readytemp[pos - 1];
-				
-				paramY = y - '0';
-				paramX = x - '0';
-			}
-			else if (count == 3)
-			{
-				/*
-					Process 8 is the only one where the first input is 2 digits
-					just hardcode parse it with an if statement
-				*/
-				
-				if(readytemp[0] == '8')
-				{
-					char y = readytemp[pos];
-					
-					char x[5];
-					char tmp1 = readytemp[pos-1];
-					char tmp2 = readytemp[pos-2];
-					strncat(x, &tmp2, 1);
-					strncat(x, &tmp1, 1);
-					
-					paramY = y - '0';
-					paramX = atoi(x);
-					
-				}
-				else
-				{
-					char y[5];
-					char tmp1 = readytemp[pos];
-					char tmp2 = readytemp[pos-1];
-					strncat(y, &tmp2, 1);
-					strncat(y, &tmp1, 1);
-					
-					
-					char x = readytemp[pos-2]; 
-					
-					paramY = atoi(y);
-					paramX = x - '0';
-				}
-				
-			}
-			else if (count == 4)
-			{
-				//concat two digs for x, concat two digts for y
-				char y[5];
-				char tmp1 = readytemp[pos];
-				char tmp2 = readytemp[pos-1];
-				strncat(y, &tmp2, 1);
-				strncat(y, &tmp1, 1);
-				
-				
-				
-				char x[5];
-				char tmp3 = readytemp[pos-2];
-				char tmp4 = readytemp[pos-3];
-				strncat(x, &tmp4, 1);
-				strncat(x, &tmp3, 1);
-				
-				paramY = atoi(y);
-				paramX = atoi(x);
-				
-				
-			}
-			
-			
-		int result;
-		
-		if(strcmp(fcn, "sum") == 0)
-		{
-			result = (*comp[0]) (paramX, paramY);
-		}
-		else if(strcmp(fcn, "power") == 0)
-		{
-			result = (*comp[1]) (paramX, paramY);
-		}
-		else if(strcmp(fcn, "fibonacci") == 0)
-		{
-			result = (*comp[2]) (paramX, paramY);
-		}
-		else if(strcmp(fcn, "product") == 0)
-		{
-			result = (*comp[3]) (paramX, paramY);
-		}
-		
-		char finalOut[40] = " "; 
-		char finalOut2[] = " Result is: ";
-		char finalRes[15] = " ";
-		
-		sprintf(finalRes, "%i", result);
-		
-		strcat(finalOut, temp[i]);
-		strcat(finalOut, finalOut2);
-		strcat(finalOut, finalRes);
-		
-			
-		send(finalOut);
-		
-	//End of foor loop		
-
 	}
 	
-}
-
-
-
-/* 
-	Function pointer array for schedulers
+	pthread_mutex_unlock(&mutex1);
 	
-   */
+}; 
+// End of sched alg func declarations
+
+
    
-   void (*p[3]) () = {fcfs, sjf, priority};
-   
-   /*
-We're just going to have the sched dispatcher call the sched pol function
-each sched pol function will have the send() method inside it
-
-When sched thread is created it'll call the scheddisp func
-When logger thread is created it'll call the logger func
-
-For the sched disp, a ptr to the chosen sched pol needs to be passed in
-
-*/
+// May need to clean this up a bit
 void *sched_disp_func()
 {
-	if(strcmp(polChoice, "FCFS") == 0)
+	if(strcmp(sched_choice, "fcfs") == 0)
 	{
-		(*p[0])();
-	}	
-	else if(strcmp(polChoice, "SJF") == 0)
-	{
-		(*p[1])();
+		fcfs();
 	}
-	else if(strcmp(polChoice, "PRIORITY") == 0)
+	else if(strcmp(sched_choice, "sjf") == 0)
 	{
-		(*p[2])();
+		sjf();
+	}
+	else if(strcmp(sched_choice, "priority") == 0)
+	{
+		priority();
 	}
 	
-	pthread_exit(&sched_disp_func);
-	
-}
+	pthread_exit(0);
+};
+
 
 /*
 	Logger will write contents of fifo to the output file, 
@@ -870,11 +190,16 @@ void *sched_disp_func()
 void *logger_func()
 {
 	
-	recv();
-
+	pthread_mutex_lock(&mutex1);
+	for(int i = 0; i < 10; i++)
+	{
+		printf("PID: %d, Result: %d\n", fifo[i].pid, fifo[i].result);
+	}
+	pthread_mutex_unlock(&mutex1);
 	
-	pthread_exit(&logger);
-}
+	
+	pthread_exit(0);
+};
 
 
 /* 
@@ -885,32 +210,131 @@ Order in which arguments are entered is important
 for accessing the correct ones
 */
 int main(int argc, char *argv[]) {
-   
-
-	sprintf(polChoice, "%s", argv[1]);
-	sprintf(outFile, "%s", argv[3]);
-
+	
+	strcpy(sched_choice, argv[1]);
+	
    // argv[2] is the input file
-   FILE* ptr;
-   ptr = fopen(argv[2], "r");
+	FILE* ptr;
+	ptr = fopen(argv[2], "r");
    
-   int bufferLength = 255;
-   char buffer[bufferLength]; 
-   
-   int i = 0;
+	int buflen = 50;
+	char buffer[buflen]; 
+	
+	// iterator for readyq
+	int i = 0; 
+
+
    //Populating the ready queue
-   	while(fgets(buffer, bufferLength, ptr))
+   	while(fgets(buffer, buflen, ptr) && i < 10)
 	{ 
-		strcpy(ready[i], buffer);
+		
+		// Values to be placed in the struct, need to be type casted first
+		char pid[3] = "";
+		char priority[3] = "";
+		char exec_time[3] = "";
+		char fcn[5] = "";
+		char x[5] = "";
+		char y[5] = "";
+	
+		// comma counter. each comma reps a new element in the pcb
+		int c_cnt = 0;
+		
+		// target comma value for comparison 
+		char cma = ',';
+		
+		// iterator for buffer line
+		int j = 0;
+		
+		int line_sz = strlen(buffer);
+		
+		// iterate over the current line of the buffer
+		while (j < line_sz)
+		{
+	
+			if(buffer[j] == cma)
+			{
+				c_cnt++;
+				j++;
+			} 
+			
+			if(c_cnt == 0) // parsing the pid
+			{
+				int idx = 0;
+				
+				while(buffer[j] != cma)
+				{
+					pid[idx++] = buffer[j++];
+				}
+				pid[strlen(pid)] = '\0';
+			}
+			else if(c_cnt == 1) // parsing the priority
+			{
+				int idx = 0;
+				
+				while(buffer[j] != cma)
+				{
+					priority[idx++] = buffer[j++];
+				}
+				priority[strlen(priority)] = '\0';
+					
+			}
+			else if(c_cnt == 2) // parsing the execution time
+			{
+				int idx = 0;
+				
+				while(buffer[j] != cma)
+				{
+					exec_time[idx++] = buffer[j++];
+				}
+				exec_time[strlen(exec_time)] = '\0';
+			}
+			else if(c_cnt == 3) // parsing the fcn
+			{
+				int idx = 0;
+				
+				while(buffer[j] != cma)
+				{
+					fcn[idx++] = buffer[j++];
+				}
+				fcn[strlen(fcn)] = '\0';
+			}
+			else if(c_cnt == 4) // parsing operand 1
+			{	
+				int idx = 0;
+				
+				while(buffer[j] != cma)
+				{
+					x[idx++] = buffer[j++];
+				}
+				x[strlen(x)] = '\0';
+			}
+			else if(c_cnt == 5) // parsing operand 2
+			{		
+				int idx = 0;
+				
+				while(buffer[j] != cma && j < line_sz)
+				{
+					y[idx++] = buffer[j++];
+				}
+				y[strlen(x)] = '\0';
+			}
+						
+		} // end of iterating buffer current line
+
+		
+		// Add pcb values from current line to the struct readyq
+		readyq[i].pid = atoi(pid);
+		readyq[i].priority = atoi(priority);
+		readyq[i].exec_time = atoi(exec_time);
+		strcpy(readyq[i].fcn, fcn);
+		readyq[i].x = atoi(x);
+		readyq[i].y = atoi(y);
+		
 		i++;	 	
 	}
 	 
-	 
 	fclose(ptr);
 	
-	
-	
-
 	
 	//Creation of needed threads
 	pthread_t sched_disp, logger;
@@ -928,7 +352,5 @@ int main(int argc, char *argv[]) {
 	
 	
 	
-	
-  
    return 0;
 }
