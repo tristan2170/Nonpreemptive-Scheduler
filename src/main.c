@@ -347,8 +347,9 @@ int main(int argc, char *argv[]) {
 	
 	
 	// pthread_join(sched_disp, NULL);
-	pthread_join(logger, NULL);
 	pthread_join(sched_disp, NULL);
+	pthread_join(logger, NULL);
+	
 	
 	
 	
